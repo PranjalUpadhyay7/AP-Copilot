@@ -26,9 +26,9 @@ def test_bulk_restore_defaults_request_still_gets_one_interrupt_per_parameter(
 ):
     model = ScriptedChatModel(responses=[
         AIMessage(content="", tool_calls=[
-            {"name": "propose_param_change", "args": {"name": "ATC_ANG_RLL_P", "new_value": 4.5, "reason": "restore default"}, "id": "call_1", "type": "tool_call"},
-            {"name": "propose_param_change", "args": {"name": "ATC_ANG_PIT_P", "new_value": 4.5, "reason": "restore default"}, "id": "call_2", "type": "tool_call"},
-            {"name": "propose_param_change", "args": {"name": "ATC_ANG_RLL_P", "new_value": 4.5, "reason": "restore default"}, "id": "call_3", "type": "tool_call"},
+            {"name": "propose_param_change", "args": {"name": "ATC_ANG_RLL_P", "new_value": 5.5, "reason": "restore default"}, "id": "call_1", "type": "tool_call"},
+            {"name": "propose_param_change", "args": {"name": "ATC_ANG_PIT_P", "new_value": 5.5, "reason": "restore default"}, "id": "call_2", "type": "tool_call"},
+            {"name": "propose_param_change", "args": {"name": "ATC_ANG_RLL_P", "new_value": 5.5, "reason": "restore default"}, "id": "call_3", "type": "tool_call"},
         ]),
         final_message("All restored."),
     ])
@@ -91,3 +91,48 @@ def test_oversized_numeric_value_does_not_crash_the_graph(context, checkpointer,
 
     assert "__interrupt__" not in result
     assert context.vehicle_client.set_param_calls == []
+
+
+def test_reply_that_prints_a_tool_call_as_text_is_forced_into_a_real_proposal(context, checkpointer, thread_config):
+    model = ScriptedChatModel(responses=[
+        final_message('Do this: propose_param_change(name="ATC_ANG_RLL_P", value=4.5)'),
+        tool_call_message("propose_param_change", {"name": "ATC_ANG_RLL_P", "new_value": 5.5, "reason": "x"}, "call_1"),
+        final_message("Proposed."),
+    ])
+    graph = build_graph(context, model, checkpointer)
+    result = graph.invoke(_initial_state("set roll P to 4.5"), config=thread_config)
+    assert "__interrupt__" in result
+    assert context.vehicle_client.set_param_calls == []
+
+
+def test_yes_to_an_offered_action_forces_the_proposal(context, checkpointer, thread_config):
+    model = ScriptedChatModel(responses=[
+        final_message("Plan: set roll P to 4.5.\n\n**Reply `yes` and I'll propose it.**"),
+        final_message("Okay, will do."),
+        tool_call_message("propose_param_change", {"name": "ATC_ANG_RLL_P", "new_value": 5.5, "reason": "x"}, "call_1"),
+        final_message("Proposed."),
+    ])
+    graph = build_graph(context, model, checkpointer)
+    graph.invoke(_initial_state("set roll P to 4.5"), config=thread_config)
+    result = graph.invoke(_initial_state("yes"), config=thread_config)
+    assert "__interrupt__" in result
+
+
+def test_plain_yes_with_no_offer_is_left_alone(context, checkpointer, thread_config):
+    model = ScriptedChatModel(responses=[final_message("Hi."), final_message("Glad to help.")])
+    graph = build_graph(context, model, checkpointer)
+    graph.invoke(_initial_state("hello"), config=thread_config)
+    result = graph.invoke(_initial_state("yes"), config=thread_config)
+    assert "__interrupt__" not in result and model.responses == []
+
+
+def test_recommendation_without_reading_current_values_is_sent_back_to_read_them(context, checkpointer, thread_config):
+    model = ScriptedChatModel(responses=[
+        final_message("| Parameter | Current |\n|---|---|\n| `ATC_ANG_RLL_P` | (check current) |\n\n**Reply `yes` and I'll propose these changes.**"),
+        tool_call_message("get_current_param", {"name": "ATC_ANG_RLL_P"}, "call_1"),
+        final_message("| Parameter | Current |\n|---|---|\n| `ATC_ANG_RLL_P` | 4.5 |\n\n**Reply `yes` and I'll propose these changes.**"),
+    ])
+    graph = build_graph(context, model, checkpointer)
+    result = graph.invoke(_initial_state("tune roll"), config=thread_config)
+    assert "(check current)" not in str(result["messages"][-1].content)
+    assert model.responses == []

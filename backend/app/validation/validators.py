@@ -99,6 +99,12 @@ def validate_proposed_change(
                 f"{definition.values}.",
             )
 
+    if math.isclose(live.current_value, change.new_value, rel_tol=1e-9, abs_tol=1e-9):
+        return _rejected(
+            change, live, RejectionReason.ALREADY_SET,
+            f"{name} is already {live.current_value:g}, so there is nothing to change.",
+        )
+
     # Values that are never acceptable, whatever the metadata says
     hard_block_message = is_hard_blocked(name, change.new_value)
     if hard_block_message is not None:

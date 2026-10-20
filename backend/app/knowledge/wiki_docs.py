@@ -59,6 +59,20 @@ def sync_wiki_repo(repo_dir: str | Path = DEFAULT_WIKI_SRC_DIR, *, timeout: floa
         return None
 
 
+def _recent_head(repo_dir: str | Path, max_age_s: float) -> str | None:
+    """HEAD commit of a wiki checkout fetched within `max_age_s`, so a restart doesn't re-fetch it."""
+    fetch_head = Path(repo_dir) / ".git" / "FETCH_HEAD"
+    try:
+        if time.time() - fetch_head.stat().st_mtime > max_age_s:
+            return None
+        out = subprocess.run(
+            ["git", "-C", str(repo_dir), "rev-parse", "HEAD"], check=True, capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out.stdout.strip() or None
+
+
 _UNDERLINE_RE = re.compile(r"^([=\-~^\"'`#*+.:_])\1{2,}\s*$")
 _DIRECTIVE_RE = re.compile(r"^\s*\.\.\s+\S")  # ".. directive::" / ".. comment"
 _INLINE_MARKUP_RE = re.compile(r"[*`]{1,2}")  # strip **bold**/``code``/*emph* markers, keep the text
@@ -189,7 +203,7 @@ def get_wiki_index(
     if cached is not None and not force_sync and (now - cached[1]) < sync_interval_s:
         return cached[0]
 
-    commit = sync_wiki_repo(repo_dir)
+    commit = _recent_head(repo_dir, sync_interval_s) or sync_wiki_repo(repo_dir)
     if commit is None:
         _INDEX_CACHE[vehicle_slug] = (cached[0] if cached else None, now)
         return cached[0] if cached else None

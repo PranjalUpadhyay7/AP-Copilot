@@ -22,6 +22,7 @@ class RejectionReason(str, Enum):
     INVALID_BITMASK_VALUE = "invalid_bitmask_value"
     INVALID_ENUM_VALUE = "invalid_enum_value"
     HARD_BLOCKED = "hard_blocked"
+    ALREADY_SET = "already_set"
 
 
 class ProposedChange(BaseModel):

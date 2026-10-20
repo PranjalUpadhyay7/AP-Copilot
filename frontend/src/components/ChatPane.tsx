@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSession } from "../state/SessionStore";
 import { FeedbackPrompt } from "./FeedbackPrompt";
-import { Linkify } from "./Linkify";
+import { Markdown } from "./Markdown";
 import { TurnStepsView } from "./TurnStepsView";
 
 export function ChatPane() {
@@ -37,8 +37,8 @@ export function ChatPane() {
                 {}
                 {m.turnSteps && <TurnStepsView steps={m.turnSteps} defaultOpen={m.text === ""} />}
                 {m.text !== "" && (
-                  <div className="glass rounded-[18px] rounded-bl-[4px] px-4 py-3 text-[14px] leading-relaxed text-[#2B2F3A] shadow-[0_4px_14px_rgba(31,36,90,0.14)] dark:text-[#DADFE6]">
-                    <Linkify text={m.text} />
+                  <div className="glass rounded-[18px] rounded-bl-[4px] min-w-0 break-words px-4 py-3 text-[14px] leading-relaxed text-[#2B2F3A] shadow-[0_4px_14px_rgba(31,36,90,0.14)] dark:text-[#DADFE6]">
+                    <Markdown text={m.text} />
                   </div>
                 )}
                 {m.episodeId && <FeedbackPrompt episodeId={m.episodeId} />}

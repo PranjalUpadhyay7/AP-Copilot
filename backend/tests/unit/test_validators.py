@@ -195,7 +195,7 @@ def test_critical_tier_param_flagged_not_blocked():
 def test_low_tier_param_not_flagged_critical():
     d = _def("SCHED_LOOP_RATE", min_value=50, max_value=1000)
     live_params = {"SCHED_LOOP_RATE": _live("SCHED_LOOP_RATE", 400.0, d)}
-    change = ProposedChange(param_name="SCHED_LOOP_RATE", new_value=400.0, reason="no-op tweak")
+    change = ProposedChange(param_name="SCHED_LOOP_RATE", new_value=500.0, reason="tweak")
 
     result = validate_proposed_change(change, live_params)
 
@@ -208,11 +208,11 @@ def test_reboot_required_bumps_a_non_critical_param_to_medium():
     d_no_reboot = _def("SCHED_LOOP_RATE", min_value=50, max_value=1000, reboot_required=False)
 
     with_reboot = validate_proposed_change(
-        ProposedChange(param_name="SCHED_LOOP_RATE", new_value=400.0, reason="tweak"),
+        ProposedChange(param_name="SCHED_LOOP_RATE", new_value=500.0, reason="tweak"),
         {"SCHED_LOOP_RATE": _live("SCHED_LOOP_RATE", 400.0, d_reboot)},
     )
     without_reboot = validate_proposed_change(
-        ProposedChange(param_name="SCHED_LOOP_RATE", new_value=400.0, reason="tweak"),
+        ProposedChange(param_name="SCHED_LOOP_RATE", new_value=500.0, reason="tweak"),
         {"SCHED_LOOP_RATE": _live("SCHED_LOOP_RATE", 400.0, d_no_reboot)},
     )
 
@@ -246,7 +246,7 @@ def test_dependency_warning_attached_but_not_blocking():
 def test_no_dependency_warnings_for_unrelated_param():
     d = _def("SCHED_LOOP_RATE", min_value=50, max_value=1000)
     live_params = {"SCHED_LOOP_RATE": _live("SCHED_LOOP_RATE", 400.0, d)}
-    change = ProposedChange(param_name="SCHED_LOOP_RATE", new_value=400.0, reason="no-op tweak")
+    change = ProposedChange(param_name="SCHED_LOOP_RATE", new_value=500.0, reason="tweak")
 
     result = validate_proposed_change(change, live_params)
 
@@ -323,3 +323,10 @@ def test_skipping_all_arming_checks_is_critical_tier_not_hard_blocked():
 
     assert result.accepted is True
     assert result.criticality == Criticality.CRITICAL
+
+
+def test_proposing_the_value_a_parameter_already_has_is_rejected_as_already_set():
+    live = {"FENCE_ACTION": _live("FENCE_ACTION", 1.0, _def("FENCE_ACTION", values={"0": "Report Only", "1": "RTL or Land"}))}
+    result = validate_proposed_change(ProposedChange(param_name="FENCE_ACTION", new_value=1.0, reason="x"), live)
+    assert not result.accepted and result.rejection_reason == RejectionReason.ALREADY_SET
+    assert "already 1" in result.rejection_message

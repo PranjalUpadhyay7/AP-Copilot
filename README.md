@@ -308,7 +308,7 @@ Settings are read from `backend/.env` (copy `backend/.env.example`) or the envir
 |---|---|---|
 | `NIM_API_KEY` | – | API key for the LLM endpoint (required) |
 | `NIM_BASE_URL` | `https://integrate.api.nvidia.com/v1` | Any OpenAI-compatible endpoint |
-| `NIM_MODEL` | – | Model id; must support tool calling (`openai/gpt-oss-20b` is a good default) |
+| `NIM_MODEL` | – | Model id; must support tool calling (`nvidia/nemotron-3.5-lightning-30b-a3b` is fast and scored 97% in the benchmark; `openai/gpt-oss-20b` is accurate but its free tier can take 10–40 s per call) |
 | `NIM_REQUEST_TIMEOUT_S` / `NIM_MAX_RETRIES` | `60` / `1` | Bound the worst-case wait for one LLM call |
 | `ARDUPILOT_ROOT` | `~/ardupilot` | ArduPilot checkout used for the simulator and local metadata generation |
 | `AP_COPILOT_HOME` | `~/.ap-copilot` | Where sessions, caches and indexes are stored |
@@ -325,7 +325,7 @@ Never commit `backend/.env`; it is git-ignored.
 
 ```
 NIM_API_KEY=<your-nim-key>
-NIM_MODEL=openai/gpt-oss-20b
+NIM_MODEL=nvidia/nemotron-3.5-lightning-30b-a3b
 ```
 
 **LangSmith (optional tracing).** Sign in at [smith.langchain.com](https://smith.langchain.com/), go to **Settings → API Keys → Create API Key**, then add to `backend/.env`:

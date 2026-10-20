@@ -36,7 +36,7 @@ DEPENDENCY_RULES: list[DependencyRule] = [
     DependencyRule(
         trigger_param="FENCE_ENABLE",
         related_params=["FENCE_TYPE", "FENCE_ACTION"],
-        message="Enabling geofencing without reviewing FENCE_TYPE/FENCE_ACTION can leave the fence action unset or scoped unexpectedly.",
+        message="The fence only triggers for the shapes selected in FENCE_TYPE (bit 0 max altitude, bit 1 circle around home, bit 2 polygon/inclusion zones, bit 3 min altitude) and then does what FENCE_ACTION says -- check both, or enabling it may do nothing or the wrong thing.",
     ),
 ]
 

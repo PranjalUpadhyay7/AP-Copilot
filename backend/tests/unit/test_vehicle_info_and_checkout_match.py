@@ -92,4 +92,4 @@ def test_prompt_points_reboot_requests_at_the_reboot_button():
     from app.orchestrator.prompts import SYSTEM_PROMPT, SYSTEM_PROMPT_VERSION
 
     assert "**Reboot** button" in SYSTEM_PROMPT and "cannot reboot, arm, disarm" in SYSTEM_PROMPT
-    assert SYSTEM_PROMPT_VERSION == "1.10.0"
+    assert SYSTEM_PROMPT_VERSION == "2.0.0"

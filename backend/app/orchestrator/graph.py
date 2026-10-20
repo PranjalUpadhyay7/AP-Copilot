@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, ToolMessage
@@ -34,6 +35,49 @@ _FORCE_ANSWER_NOTICE = (
     "tools now and give the user your best answer using the information "
     "you already have, clearly noting anything you were not able to "
     "confirm."
+)
+
+
+_PROPOSAL_TOOLS_RE = re.compile(r"\b(propose_param_change|propose_multi_step_procedure)\s*\(")
+_USER_SAID_YES_RE = re.compile(r"^\W*(yes|y|yeah|yep|yup|ok|okay|sure|go ahead|do it|proceed|please do|confirm)\b", re.IGNORECASE)
+_OFFER_RE = re.compile(r"reply\W+(with\W+)?yes", re.IGNORECASE)
+
+_PROSE_CALL_NOTICE = (
+    "Your last reply wrote a proposal tool call as text instead of making it, so nothing was proposed. "
+    "Call the tool now with the real tool-calling mechanism, then summarise in plain prose."
+)
+_USER_CONFIRMED_NOTICE = (
+    "The user just answered yes to the action you offered. Make the proposal(s) you described now by "
+    "calling the proposal tool(s); do not describe them again or ask again."
+)
+
+
+def _unperformed_action_notice(history: list, response) -> str | None:
+    if getattr(response, "tool_calls", None):
+        return None
+    if _PROPOSAL_TOOLS_RE.search(str(response.content or "")):
+        return _PROSE_CALL_NOTICE
+    text = str(response.content or "")
+    read_current = any(isinstance(m, ToolMessage) and m.name in ("get_current_param", "list_params_matching") for m in history)
+    if _PLACEHOLDER_RE.search(text) or (_OFFER_RE.search(text) and not read_current):
+        return _READ_VALUES_NOTICE
+    last_human = next((m for m in reversed(history) if isinstance(m, HumanMessage)), None)
+    if last_human is None or not _USER_SAID_YES_RE.match(str(last_human.content)):
+        return None
+    prior_reply = next(
+        (m for m in reversed(history) if isinstance(m, AIMessage) and not m.tool_calls and str(m.content or "").strip()),
+        None,
+    )
+    if prior_reply is not None and _OFFER_RE.search(str(prior_reply.content)):
+        return _USER_CONFIRMED_NOTICE
+    return None
+
+
+_PLACEHOLDER_RE = re.compile(r"\((check|unknown|tbd|to be checked|not checked)[^)]*\)|\bcheck current\b", re.IGNORECASE)
+_READ_VALUES_NOTICE = (
+    "Your reply recommends changes but you have not read this vehicle's current values (or you wrote a "
+    "placeholder such as '(check current)'). Call get_current_param for every parameter you mention, in one "
+    "step, then rewrite the reply with the real current values."
 )
 
 
@@ -215,6 +259,9 @@ def build_graph(
                         response = AIMessage(content=_FORCED_ANSWER_FALLBACK)
             else:
                 response = model_with_tools.invoke(messages)
+                notice = _unperformed_action_notice(state["messages"], response)
+                if notice is not None:
+                    response = model_with_tools.invoke([*messages, HumanMessage(content=notice)])
         except Exception as e:
             logger.exception("agent_node: LLM call failed for session %s", context.session_id)
             response = AIMessage(content=f"I hit a technical problem talking to the language model ({type(e).__name__}) and can't continue this turn. Please try again.")

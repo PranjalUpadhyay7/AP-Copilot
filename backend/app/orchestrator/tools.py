@@ -70,6 +70,8 @@ _expand_query = expand_query
 
 
 MAX_QUERY_VARIANTS = 4
+MAX_RESULTS = 8
+MAX_CHUNK_CHARS = 700
 
 
 def _search_tiers(context: RuntimeContext, query: str) -> list[DocChunk]:
@@ -108,7 +110,8 @@ def _search_ardupilot_docs(
             if key not in merged or chunk.ranking_score > merged[key].ranking_score:
                 merged[key] = chunk
     context.retrieval_stats.searches += 1
-    return sorted(merged.values(), key=lambda c: c.ranking_score, reverse=True)
+    top = sorted(merged.values(), key=lambda c: c.ranking_score, reverse=True)[:MAX_RESULTS]
+    return [c.model_copy(update={"text": c.text[:MAX_CHUNK_CHARS]}) if len(c.text) > MAX_CHUNK_CHARS else c for c in top]
 
 
 def _search_web(context: RuntimeContext, query: str) -> list[DocChunk] | str:

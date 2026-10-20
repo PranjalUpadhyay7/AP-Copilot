@@ -100,6 +100,7 @@ def test_huge_integers_handled_without_crashing(new_value: int):
 def test_dependency_warnings_never_block_acceptance(ranged):
     live, lo, hi = ranged
     mid = (lo + hi) / 2
+    assume(not math.isclose(live.current_value, mid, rel_tol=1e-9, abs_tol=1e-9))
     change = ProposedChange(param_name=PARAM_NAME, new_value=mid, reason="r")
 
     result = validate_proposed_change(change, {PARAM_NAME: live})

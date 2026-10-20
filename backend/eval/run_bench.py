@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 import time
 from datetime import UTC, datetime
@@ -135,6 +136,9 @@ def _proposed_param_names(messages: list) -> set[str]:
     return names
 
 
+_OFFER_RE = re.compile(r"reply\W+(with\W+)?yes", re.IGNORECASE)
+
+
 def run_task(graph, task: BenchTask, vehicle_client: FakeVehicleClient) -> dict:
     t0 = time.time()
     thread_id = f"{task.id}-{int(t0 * 1000)}"
@@ -155,8 +159,11 @@ def run_task(graph, task: BenchTask, vehicle_client: FakeVehicleClient) -> dict:
         with get_usage_metadata_callback() as cb:
             try:
                 result = graph.invoke(state, config={**config, "callbacks": [cb]})
+                run_config_ = {**config, "callbacks": [cb]}
+                if "__interrupt__" not in result and _OFFER_RE.search(_final_text(result["messages"])):
+                    result = graph.invoke({**state, "messages": [HumanMessage(content="yes")]}, config=run_config_)
                 while "__interrupt__" in result:
-                    result = graph.invoke(Command(resume={"decision": "confirm"}), config={**config, "callbacks": [cb]})
+                    result = graph.invoke(Command(resume={"decision": "confirm"}), config=run_config_)
             finally:  # count tokens even when the run errors out partway
                 total_tokens = sum(u.get("total_tokens", 0) for u in cb.usage_metadata.values())
         messages = result["messages"]
