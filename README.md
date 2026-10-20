@@ -319,6 +319,29 @@ Settings are read from `backend/.env` (copy `backend/.env.example`) or the envir
 
 Never commit `backend/.env`; it is git-ignored.
 
+### Getting the keys
+
+**NVIDIA NIM (LLM).** Sign in at [build.nvidia.com](https://build.nvidia.com/), open any model page (for example `gpt-oss-20b`), click **Get API Key** and copy the key that starts with `nvapi-`. Put it in `backend/.env`:
+
+```
+NIM_API_KEY=<your-nim-key>
+NIM_MODEL=openai/gpt-oss-20b
+```
+
+**LangSmith (optional tracing).** Sign in at [smith.langchain.com](https://smith.langchain.com/), go to **Settings → API Keys → Create API Key**, then add to `backend/.env`:
+
+```
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=<your-langsmith-key>
+LANGCHAIN_PROJECT=ap-copilot
+```
+
+Restart the backend; each chat turn then appears as a trace in the LangSmith project.
+
+### Feedback log
+
+When the assistant proposes something, the UI asks whether it worked. Each episode is appended as one JSON line to `$AP_COPILOT_HOME/rl_training_log.jsonl` (default `~/.ap-copilot/rl_training_log.jsonl`; `AP_COPILOT_RL_LOG` overrides the path): a `record: "episode"` line with the user's problem, the approaches tried and the outcome, followed by `record: "update"` lines carrying `resolution_signal` (`worked` / `did_not_work`). It is raw material for later preference tuning or evaluation. Nothing is sent off the machine.
+
 ## API overview
 
 Interactive docs are served at `http://127.0.0.1:8000/docs` while the backend runs.
