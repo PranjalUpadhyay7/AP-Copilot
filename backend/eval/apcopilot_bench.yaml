@@ -1,0 +1,404 @@
+# Benchmark tasks: one user turn each, scored against a machine-checkable outcome (see eval/schema.py).
+tasks:
+  - id: simple_config_01
+    category: simple_config
+    description: "Tighten roll angle P gain a bit"
+    prompt: "My copter feels a little sloppy on roll. Can you tighten the roll angle gain slightly, to 5.5?"
+    expected: {type: param_written, param_name: ATC_ANG_RLL_P, value: 5.5}
+
+  - id: simple_config_02
+    category: simple_config
+    description: "Lower battery low-voltage failsafe threshold"
+    prompt: "Set my battery low voltage failsafe to 10.0 volts."
+    expected: {type: param_written, param_name: BATT_LOW_VOLT, value: 10.0}
+
+  - id: simple_config_03
+    category: simple_config
+    description: "Raise waypoint navigation speed"
+    prompt: "I want faster missions -- set waypoint navigation speed to 800 cm/s."
+    expected: {type: param_written, param_name: WPNAV_SPEED, value: 800.0}
+
+  - id: simple_config_04
+    category: simple_config
+    description: "Increase RC failsafe hold time"
+    prompt: "Increase the RC failsafe timeout to 3 seconds so brief signal glitches don't trigger it."
+    expected: {type: param_written, param_name: RC_FS_TIMEOUT, value: 3.0}
+
+  - id: simple_config_05
+    category: simple_config
+    description: "Lower pilot climb speed"
+    prompt: "Limit my max climb rate to 150 cm/s for smoother manual flying."
+    expected: {type: param_written, param_name: PILOT_SPEED_UP, value: 150.0}
+
+  - id: multi_step_dependent_01
+    category: multi_step_dependent
+    description: "Enable EKF3 -- must surface the AHRS_EKF_TYPE/EK2_ENABLE dependency"
+    overrides: {EK3_ENABLE: 0.0}
+    prompt: "Enable EKF3 on this vehicle."
+    expected: {type: param_written, param_name: EK3_ENABLE, value: 1.0, reply_must_mention: ["AHRS_EKF_TYPE"]}
+
+  - id: multi_step_dependent_02
+    category: multi_step_dependent
+    description: "Enable geofencing -- must surface the FENCE_TYPE/FENCE_ACTION dependency"
+    prompt: "Turn on the geofence."
+    expected: {type: param_written, param_name: FENCE_ENABLE, value: 1.0, reply_must_mention: ["FENCE_TYPE"]}
+
+  - id: multi_step_dependent_03
+    category: multi_step_dependent
+    description: "Switch primary EKF -- must surface the EK2/EK3 dependency"
+    overrides: {AHRS_EKF_TYPE: 2.0}
+    prompt: "Set the primary EKF type to EKF3."
+    expected: {type: param_written, param_name: AHRS_EKF_TYPE, value: 3.0}
+
+  - id: multi_step_dependent_04
+    category: multi_step_dependent
+    description: "Skip arming checks -- must surface the ARMING_REQUIRE dependency"
+    prompt: "I want to skip all arming checks for a bench test."
+    expected: {type: param_written, param_name: ARMING_SKIPCHK, value: 1.0, reply_must_mention: ["ARMING_REQUIRE"]}
+
+  - id: multi_step_dependent_05
+    category: multi_step_dependent
+    description: "Change fence action -- related to FENCE_ENABLE already on"
+    fixture: default_copter
+    overrides: {FENCE_ENABLE: 1.0}
+    prompt: "Change the fence breach action to always land."
+    expected: {type: param_written, param_name: FENCE_ACTION, value: 2.0}
+
+  - id: firmware_version_sensitive_01
+    category: firmware_version_sensitive
+    description: "User asks using the pre-rename name on firmware that only has the old name"
+    fixture: pre_rename_arming_check
+    prompt: "Set ARMING_CHECK to skip all checks."
+    expected: {type: param_written, param_name: ARMING_CHECK, value: 0.0}
+
+  - id: firmware_version_sensitive_02
+    category: firmware_version_sensitive
+    description: "User asks using the CURRENT name on firmware that only has the old name -- must not invent ARMING_SKIPCHK"
+    fixture: pre_rename_arming_check
+    prompt: "Set ARMING_SKIPCHK to 0."
+    expected: {type: no_write, must_not_propose: [ARMING_SKIPCHK]}
+
+  - id: firmware_version_sensitive_03
+    category: firmware_version_sensitive
+    description: "User asks using the OLD name on firmware that only has the current name -- must find ARMING_SKIPCHK, not invent ARMING_CHECK"
+    fixture: default_copter
+    prompt: "Turn off ARMING_CHECK entirely -- I want every arming check skipped."
+    expected: {type: param_written, param_name: ARMING_SKIPCHK, value: 1.0, must_not_propose: [ARMING_CHECK]}
+
+  - id: firmware_version_sensitive_04
+    category: firmware_version_sensitive
+    description: "Camera param rename awareness (CAM_TRIGG_TYPE historical vs CAM1_TYPE current, see decisions.md)"
+    fixture: default_copter
+    prompt: "I have a relay-triggered camera. Configure the camera trigger type for that."
+    expected: {type: param_written, param_name: CAM1_TYPE, value: 2.0}
+
+  - id: firmware_version_sensitive_05
+    category: firmware_version_sensitive
+    description: "Ambiguous old/new name question should be answered against the connected vehicle's real state"
+    fixture: pre_rename_arming_check
+    prompt: "What does ARMING_CHECK do on my vehicle, and what's it currently set to?"
+    expected: {type: no_write, reply_must_mention: ["1"]}
+
+  - id: diagnostic_qa_01
+    category: diagnostic_qa
+    description: "Why won't it arm -- PreArm compass failure in STATUSTEXT"
+    prompt: "Why won't my copter arm right now?"
+    statustext: [[3, "PreArm: Compass not calibrated"]]
+    expected: {type: no_write, reply_must_mention: ["compass"]}
+
+  - id: diagnostic_qa_02
+    category: diagnostic_qa
+    description: "Why won't it arm -- PreArm GPS failure in STATUSTEXT"
+    prompt: "I can't get it to arm, what's going on?"
+    statustext: [[3, "PreArm: Need 3D Fix"]]
+    expected: {type: no_write, reply_must_mention: ["GPS"]}
+
+  - id: diagnostic_qa_03
+    category: diagnostic_qa
+    description: "Plain factual question about a live value"
+    prompt: "What's my current battery low voltage failsafe threshold?"
+    expected: {type: no_write, reply_must_mention: ["10.5"]}
+
+  - id: diagnostic_qa_04
+    category: diagnostic_qa
+    description: "Explain what a parameter does, grounded in the real definition"
+    prompt: "What does FENCE_ACTION control, and what's it set to right now?"
+    expected: {type: no_write, reply_must_mention: ["RTL"]}
+
+  - id: diagnostic_qa_05
+    category: diagnostic_qa
+    description: "Multi-symptom diagnostic -- EKF failsafe in STATUSTEXT"
+    prompt: "My copter reported an EKF failsafe earlier today, mid-flight. What should I check?"
+    statustext: [[4, "EKF variance"]]
+    expected: {type: no_write, reply_must_mention: ["EKF"]}
+
+  - id: should_refuse_01
+    category: should_refuse
+    description: "Out-of-range value for a bounded param"
+    prompt: "Set the roll angle P gain to 50 -- I want it really aggressive."
+    expected: {type: no_write}
+
+  - id: should_refuse_02
+    category: should_refuse
+    description: "Undocumented parameter -- must not propose a change to it"
+    prompt: "Set MYSTERY_VENDOR_PARAM to 99."
+    expected: {type: no_write, must_not_propose: [MYSTERY_VENDOR_PARAM]}
+
+  - id: should_refuse_03
+    category: should_refuse
+    description: "Nonexistent parameter the model might be tempted to invent"
+    prompt: "Set FLUX_CAPACITOR_GAIN to 1.21."
+    expected: {type: no_write, must_not_propose: [FLUX_CAPACITOR_GAIN]}
+
+  - id: should_refuse_04
+    category: should_refuse
+    description: "Fractional value for a discrete bitmask param"
+    prompt: "Set ARMING_SKIPCHK to 2.5."
+    expected: {type: no_write}
+
+  - id: should_refuse_05
+    category: should_refuse
+    description: "Out-of-range value; clamping to the documented 50 Hz minimum with an explanation is the accepted safe outcome"
+    prompt: "Set the main loop rate to 5 Hz, as low as it'll go."
+    expected: {type: param_written, param_name: SCHED_LOOP_RATE, value: 50.0}
+
+  - id: under_specified_01
+    category: under_specified
+    description: "Vague improvement request with no target named"
+    prompt: "Can you make my drone fly better?"
+    expected: {type: clarification}
+
+  - id: under_specified_02
+    category: under_specified
+    description: "Vague camera request with no hardware specified"
+    prompt: "Help me set up my camera."
+    expected: {type: clarification}
+
+  - id: under_specified_03
+    category: under_specified
+    description: "Vague tuning request with no axis/direction named"
+    prompt: "Something feels off with the handling, can you fix it?"
+    expected: {type: clarification}
+
+  - id: under_specified_04
+    category: under_specified
+    description: "Vague safety request with no specifics"
+    prompt: "Make it safer."
+    expected: {type: clarification}
+
+  - id: under_specified_05
+    category: under_specified
+    description: "Vague speed request with no direction/axis named"
+    prompt: "Can you speed things up a bit?"
+    expected: {type: clarification}
+
+  - id: simple_config_06
+    category: simple_config
+    description: "RTL altitude given in metres; the parameter is in centimetres"
+    fixture: real_copter_463
+    prompt: "Set the return-to-launch altitude to 25 meters."
+    expected: {type: param_written, param_name: RTL_ALT, value: 2500.0}
+
+  - id: simple_config_07
+    category: simple_config
+    description: "Lean angle in degrees; the parameter is in centi-degrees"
+    fixture: real_copter_463
+    prompt: "Limit the maximum lean angle to 30 degrees."
+    expected: {type: param_written, param_name: ANGLE_MAX, value: 3000.0}
+
+  - id: simple_config_08
+    category: simple_config
+    description: "Loiter speed (not the waypoint speed)"
+    fixture: real_copter_463
+    prompt: "Set the loiter mode horizontal speed to 600 cm/s."
+    expected: {type: param_written, param_name: LOIT_SPEED, value: 600.0}
+
+  - id: simple_config_09
+    category: simple_config
+    description: "Hover throttle, a bounded fraction"
+    fixture: real_copter_463
+    prompt: "Set the hover throttle to 0.35."
+    expected: {type: param_written, param_name: MOT_THST_HOVER, value: 0.35}
+
+  - id: simple_config_10
+    category: simple_config
+    description: "Landing descent speed"
+    fixture: real_copter_463
+    prompt: "Make the final landing descent speed 40 cm/s."
+    expected: {type: param_written, param_name: LAND_SPEED, value: 40.0}
+
+  - id: multi_step_dependent_06
+    category: multi_step_dependent
+    description: "Fence altitude while the fence itself is disabled"
+    fixture: real_copter_463
+    prompt: "Set the geofence maximum altitude to 80 meters."
+    expected: {type: param_written, param_name: FENCE_ALT_MAX, value: 80.0}
+
+  - id: multi_step_dependent_07
+    category: multi_step_dependent
+    description: "Natural-language enum: low battery -> land"
+    fixture: real_copter_463
+    prompt: "When the battery gets low, I want the vehicle to land instead of returning home."
+    expected: {type: param_written, param_name: BATT_FS_LOW_ACT, value: 1.0}
+
+  - id: multi_step_dependent_08
+    category: multi_step_dependent
+    description: "Natural-language enum: critical battery -> RTL"
+    fixture: real_copter_463
+    prompt: "On a critically low battery, make the vehicle return to launch."
+    expected: {type: param_written, param_name: BATT_FS_CRT_ACT, value: 2.0}
+
+  - id: multi_step_dependent_09
+    category: multi_step_dependent
+    description: "Radio-loss behaviour is the throttle failsafe in ArduCopter"
+    fixture: real_copter_463
+    prompt: "Turn on the throttle failsafe so the vehicle returns to launch if the radio signal is lost."
+    expected: {type: param_written, param_name: FS_THR_ENABLE, value: 1.0}
+
+  - id: multi_step_dependent_10
+    category: multi_step_dependent
+    description: "Natural-language enum: EKF failure -> land"
+    fixture: real_copter_463
+    prompt: "If the EKF fails, I want the copter to land."
+    expected: {type: param_written, param_name: FS_EKF_ACTION, value: 1.0}
+
+  - id: firmware_version_sensitive_06
+    category: firmware_version_sensitive
+    description: "Newer name (RTL_ALT_M, 4.7+) on 4.6.3 firmware -> must find and write the real RTL_ALT"
+    fixture: real_copter_463
+    prompt: "Set the return altitude to 20 meters. My ground station calls the parameter RTL_ALT_M."
+    expected: {type: param_written, param_name: RTL_ALT, value: 2000.0, must_not_propose: [RTL_ALT_M]}
+
+  - id: firmware_version_sensitive_07
+    category: firmware_version_sensitive
+    description: "[new behaviour] documented-but-absent parameter: set the parent (relay=2), tell the user to reboot"
+    fixture: real_copter_463
+    prompt: "Set CAM1_FEEDBAK_PIN to AUX2 (pin 51) so I can wire my camera's hotshoe. My camera is triggered by a relay."
+    expected: {type: param_written, param_name: CAM1_TYPE, value: 2.0, reply_must_mention: ["reboot"]}
+
+  - id: firmware_version_sensitive_08
+    category: firmware_version_sensitive
+    description: "[new behaviour] must say the parameter is documented but needs the parent + a reboot, not 'does not exist'"
+    fixture: real_copter_463
+    prompt: "Is CAM1_FEEDBAK_POL available on my vehicle right now?"
+    expected: {type: no_write, reply_must_mention: ["reboot"]}
+
+  - id: firmware_version_sensitive_09
+    category: firmware_version_sensitive
+    description: "[new behaviour] firmware version is known to the assistant; it must not ask the user"
+    fixture: real_copter_463
+    prompt: "What firmware version am I running?"
+    expected: {type: no_write, reply_must_mention: ["4.6.3"]}
+
+  - id: firmware_version_sensitive_10
+    category: firmware_version_sensitive
+    description: "[new behaviour] vehicle kind + firmware from the connected-vehicle context"
+    fixture: real_copter_463
+    prompt: "What kind of vehicle and which firmware is connected to this session?"
+    expected: {type: no_write, reply_must_mention: ["4.6.3", "copter"]}
+
+  - id: diagnostic_qa_06
+    category: diagnostic_qa
+    description: "Read a live value with its unit conversion left to the model"
+    fixture: real_copter_463
+    prompt: "What is my current return-to-launch altitude?"
+    expected: {type: no_write, reply_must_mention: ["1500"]}
+
+  - id: diagnostic_qa_07
+    category: diagnostic_qa
+    description: "Interpret a live enum value (BATT_FS_LOW_ACT=2 -> RTL)"
+    fixture: real_copter_463
+    prompt: "What will the vehicle do when the battery goes low?"
+    expected: {type: no_write, reply_must_mention: ["rtl"]}
+
+  - id: diagnostic_qa_08
+    category: diagnostic_qa
+    description: "Read a live fractional value"
+    fixture: real_copter_463
+    prompt: "What's my hover throttle set to?"
+    expected: {type: no_write, reply_must_mention: ["0.39"]}
+
+  - id: diagnostic_qa_09
+    category: diagnostic_qa
+    description: "Read a live value stored in centi-degrees"
+    fixture: real_copter_463
+    prompt: "What is the maximum lean angle set to right now?"
+    expected: {type: no_write, reply_must_mention: ["45"]}
+
+  - id: diagnostic_qa_10
+    category: diagnostic_qa
+    description: "Why won't it arm -- PreArm GPS failure in STATUSTEXT"
+    fixture: real_copter_463
+    prompt: "The copter won't arm. What is the vehicle telling us?"
+    statustext: [[4, "PreArm: GPS: waiting for 3D fix"]]
+    expected: {type: no_write, reply_must_mention: ["gps"]}
+
+  - id: should_refuse_06
+    category: should_refuse
+    description: "[new behaviour] the assistant has no reboot tool: it must point to the Reboot button, not pretend"
+    fixture: real_copter_463
+    prompt: "Reboot the flight controller for me."
+    expected: {type: no_write, reply_must_mention: ["button"]}
+
+  - id: should_refuse_07
+    category: should_refuse
+    description: "Out of range (FS_THR_VALUE 910..1100)"
+    fixture: real_copter_463
+    prompt: "Set FS_THR_VALUE to 2000."
+    expected: {type: no_write}
+
+  - id: should_refuse_08
+    category: should_refuse
+    description: "Out of range (ANGLE_MAX 1000..8000 cdeg)"
+    fixture: real_copter_463
+    prompt: "Set ANGLE_MAX to 9000 centidegrees."
+    expected: {type: no_write}
+
+  - id: should_refuse_09
+    category: should_refuse
+    description: "Out of range (MOT_THST_HOVER 0.125..0.6875)"
+    fixture: real_copter_463
+    prompt: "Set MOT_THST_HOVER to 0.9."
+    expected: {type: no_write}
+
+  - id: should_refuse_10
+    category: should_refuse
+    description: "Non-numeric value"
+    fixture: real_copter_463
+    prompt: "Set LOG_BITMASK to banana."
+    expected: {type: no_write}
+
+  - id: under_specified_06
+    category: under_specified
+    description: "Which battery warning? which setting?"
+    fixture: real_copter_463
+    prompt: "Fix my battery warnings."
+    expected: {type: clarification}
+
+  - id: under_specified_07
+    category: under_specified
+    description: "Which failsafe? to what?"
+    fixture: real_copter_463
+    prompt: "Change the failsafe."
+    expected: {type: clarification}
+
+  - id: under_specified_08
+    category: under_specified
+    description: "Better in what way?"
+    fixture: real_copter_463
+    prompt: "Make the return home better."
+    expected: {type: clarification}
+
+  - id: under_specified_09
+    category: under_specified
+    description: "Which gimbal, which interface?"
+    fixture: real_copter_463
+    prompt: "Set up my gimbal."
+    expected: {type: clarification}
+
+  - id: under_specified_10
+    category: under_specified
+    description: "What went wrong and what to change?"
+    fixture: real_copter_463
+    prompt: "It crashed last flight. Make sure that doesn't happen again."
+    expected: {type: clarification}

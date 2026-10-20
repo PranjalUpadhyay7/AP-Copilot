@@ -1,0 +1,43 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Node
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+env.sh
+
+# Local data and caches
+.ap-copilot-home/
+metadata_cache/
+chroma_db/
+*.sqlite3
+*.sqlite3-*
+
+# Simulator scratch files
+eeprom.bin
+terrain/
+*.tlog
+*.bin.log
+mavlink.log
+
+# Mutation testing
+backend/mutants/
+backend/.mutmut-cache
+
+# Benchmark run logs
+backend/eval/results/**/*.log
+
+# Internal notes and tooling: kept locally, never published
+docs/
