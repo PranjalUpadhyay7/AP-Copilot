@@ -52,6 +52,22 @@ if [[ -f "$REPO_ROOT/env.sh" ]]; then
 fi
 echo "  Data home: ${AP_COPILOT_HOME:-$HOME/.ap-copilot}"
 
+# Node comes from nvm in most setups; load it when this shell did not (non-interactive or fresh terminals).
+if ! command -v npm >/dev/null 2>&1; then
+    export NVM_DIR="${NVM_HOME:-$HOME/.nvm}"
+    # shellcheck disable=SC1091
+    if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+        set +u
+        source "$NVM_DIR/nvm.sh" >/dev/null 2>&1
+        command -v npm >/dev/null 2>&1 || nvm use --silent node >/dev/null 2>&1
+        set -u
+    fi
+fi
+if ! command -v npm >/dev/null 2>&1; then
+    echo "npm not found. Install Node.js 20+ (https://nodejs.org or nvm) and run this again." >&2
+    exit 1
+fi
+
 # Always run the backend in its own environment, even if the shell exports another uv project's.
 export UV_PROJECT_ENVIRONMENT="$REPO_ROOT/backend/.venv"
 
