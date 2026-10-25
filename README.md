@@ -13,6 +13,8 @@
 
 [Why](#the-problem) · [Features](#features) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Configuration](#configuration) · [Testing](#testing) · [Evaluation](#evaluation) · [Limitations](#safety-notes-and-limitations)
 
+<img src="assets/demo.gif" alt="AP-Copilot demo: ask a question, review the proposal, confirm, see the session summary" width="900">
+
 </div>
 
 ---
